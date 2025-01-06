@@ -21,8 +21,7 @@ namespace QR_scanner_zxing
             NavigationPage.SetHasBackButton(this, false); // Remove botão de voltar caso o usuário volte para a tela inicial após uma conexão
         }
 
-        // Removendo ação do botão de voltar na tela inicial
-
+        // Função para conexão direta ao endereço (uso somente em escala de desenvolvimento)
         protected override async void OnAppearing()
         {
             base.OnAppearing();
@@ -104,7 +103,6 @@ namespace QR_scanner_zxing
                         await DisplayAlert("Teste", $"QR Code inválido. Valor do QR Code: {qrCodeValue}", "OK");
                     });
                     _isProcessing= false;
-                    //await DisplayAlert("Teste", $"Este QR Code não contém o formato específico para ser lido. Valor do QR Code: {qrCodeValue}", "OK");
                 }
             }
             catch (Exception ex)
@@ -143,12 +141,10 @@ namespace QR_scanner_zxing
         {
             try
             {
-                Console.WriteLine($"Entrei na função PromptBluetoothConnection {bluetoothAddress}");
                 _isProcessing = true;
                 bool connect = await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
-                    Console.WriteLine($"(PromptBLuetoothConnection) {bluetoothAddress} Address detected.");
-                    return await DisplayAlert("Conectar ao Bluetooth?", $"Foi detectado o endereço Bluetooth pelo QR lido: {bluetoothAddress}", "Sim", "Não");
+                    return await DisplayAlert("Conectar ao dispositivo?", $"Foi detectado o endereço Bluetooth pelo QR lido: {bluetoothAddress}", "Sim", "Não");
                 });
 
                 if (connect)
@@ -217,6 +213,8 @@ namespace QR_scanner_zxing
                     await Navigation.PushAsync(new RecordDisplayPage(_bluetoothService));
                 });
 
+
+                // Página de listagem de serviços e características do dispositivo
                 //await MainThread.InvokeOnMainThreadAsync(async () =>
                 //{
                 //    Application.Current.UserAppTheme = AppTheme.Light;
@@ -240,24 +238,9 @@ namespace QR_scanner_zxing
                     loadingOverlay.IsVisible = false;
                 });
 
-                Console.WriteLine("[OnConnectButtonClicked][Erro] Não foi possível ler os dados do dispositivo.");
+                Console.WriteLine("[QRCodeScannerPage][OnConnectButtonClicked][Erro] Não foi possível ler os dados do dispositivo.");
                 await DisplayAlert("Erro", "Não foi possível ler os dados do dispositivo.", "OK");
             }
-
-
-            // Depois de fazer a leitura dos dados -> navega para a página que exibe os dados
-            //if (data != null && data.Length > 0)
-            //{
-            //    await MainThread.InvokeOnMainThreadAsync(async () =>
-            //    {
-            //        Application.Current.UserAppTheme = AppTheme.Light;
-            //        await Navigation.PushAsync(new RecordDisplayPage(_bluetoothService));
-            //    });
-            //}
-            //else 
-            //{
-            //    Console.WriteLine("[OnConnectButtonClicked][Aviso] Nenhum dado encontrado para leitura.");
-            //}
             _isProcessing = false;
         }
     }
