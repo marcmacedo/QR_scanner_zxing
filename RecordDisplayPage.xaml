@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="QR_scanner_zxing.RecordDisplayPage"
+             Title="Dados encontrados">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem
+            Text="Exportar Dados"
+            Clicked="OnExportClicked"/>
+    </ContentPage.ToolbarItems>
+
+    <StackLayout Padding="20">
+        <Label x:Name = "TitleLabel" Text="Registros lidos" FontSize="Large" HorizontalOptions="Center" />
+        <!--####################################-->
+        <ListView x:Name="RecordsListView">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <ViewCell>
+                        <StackLayout Orientation="Horizontal" Padding="10">
+                            <Label Text="{Binding Timestamp}" FontSize="16" WidthRequest="150" />
+                            <Label Text="{Binding Temperatura}" FontSize="16" />
+                        </StackLayout>
+                    </ViewCell>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <!--####################################-->
+    </StackLayout>
+
+</ContentPage>

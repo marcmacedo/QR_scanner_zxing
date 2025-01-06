@@ -1,0 +1,25 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+             x:Class="QR_scanner_zxing.QRCodeScannerPage"
+             Title="Escanear QR">
+
+    <Grid>
+        <zxing:CameraBarcodeReaderView x:Name="cameraBarcodeReaderView"
+                                       HorizontalOptions="FillAndExpand"
+                                       VerticalOptions="FillAndExpand"
+                                       BarcodesDetected="OnBarcodeDetected" 
+                                       IsVisible="True"/>
+
+        <Grid x:Name="loadingOverlay" IsVisible="False" BackgroundColor="#C0000000" Padding="20">
+            <Frame BackgroundColor="#77000000" Padding="15"
+               HorizontalOptions="Center" VerticalOptions="Center"
+               CornerRadius="10">
+                <StackLayout Spacing="10" VerticalOptions="Center" HorizontalOptions="Center">
+                    <ActivityIndicator IsRunning="True" Color="White"/>
+                    <Label Text="Conectando..." TextColor="White" HorizontalTextAlignment="Center"/>
+                </StackLayout>
+            </Frame>
+        </Grid>
+    </Grid>
+</ContentPage>
