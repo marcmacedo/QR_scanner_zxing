@@ -2,6 +2,7 @@
 
 #if ANDROID
 using Android.Net;
+using AndroidX.Window.Layout;
 using Microsoft.Maui.Animations;
 using Microsoft.Maui.Controls.Platform.Compatibility;
 using Plugin.BLE;
@@ -12,6 +13,7 @@ using Shiny.Reflection;
 using System;
 using System.Net.Mail;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 
@@ -33,6 +35,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
 
         ICharacteristic characteristicFFF3;
+        ICharacteristic characteristicFD0D;
 
 
         public async Task<IDevice> ConnectToBleAsync(string macAddress)
@@ -180,14 +183,32 @@ namespace QR_scanner_zxing.Platforms.Android
                 }
 
 
-                var service = await _connectedDevice.GetServiceAsync(_serviceUuid);
-                if (service == null)
+                //var services = await _connectedDevice.GetServicesAsync();
+                //foreach (var service in services)
+                //{
+                //    var characteristics = await service.GetCharacteristicsAsync();
+                //    foreach (var characteristic in  characteristics)
+                //    {
+                //        Console.WriteLine($"\n\n[KBEACON] Informações encontradas:\n\tID Serviço: {service.Id}\n\tNome Serviço: {service.Name}\n\n\tID Característica: {characteristic.Id}\n\tNome característica: {characteristic.Name}\n\tPropriedades da característica: \n\t\tPode ser lida: {characteristic.CanRead}\n\t\tPode ser escrita: {characteristic.CanWrite}\n\t\tPode ser atualizada: {characteristic.CanUpdate}");
+
+                //        if (service.Id.ToString() == "0000fd0d-0000-1000-8000-00805f9b34fb" && characteristic.Id.ToString() == "0000fd0d-0000-1000-8000-00805f9b34fb")
+                //        {
+                //            characteristicFD0D = characteristic;
+                //        }
+                //    }
+                //}
+
+
+                //var service_zen = await _connectedDevice.GetServiceAsync(_serviceUuid);
+                var service_zen = await _connectedDevice.GetServiceAsync(new Guid("0000fd0d-0000-1000-8000-00805f9b34fb"));
+
+                if (service_zen == null)
                 {
                     throw new Exception("Serviço não encontrado.");
                 }
 
-                var characteristics = await service.GetCharacteristicsAsync();
 
+                  var characteristics = await service_zen.GetCharacteristicsAsync();
 
                 foreach (var characteristic in characteristics)
                 {
@@ -195,6 +216,14 @@ namespace QR_scanner_zxing.Platforms.Android
                     {
                         Console.WriteLine("Característica não encontrada.");
                     }
+
+
+                    if (characteristic.Id.ToString() == "ec4f0000-1537-443e-b05a-713051212f1c")
+                    {
+                        characteristicFD0D = characteristic;
+                        Console.WriteLine($"ESCREVENDO VALOR DE CARACTERISTIC NO FD0D");
+                    }
+
 
                     if (characteristic.Id.ToString() == "0000fff1-0000-1000-8000-00805f9b34fb")
                     {
@@ -213,7 +242,7 @@ namespace QR_scanner_zxing.Platforms.Android
                         _startDate = BitConverter.ToUInt32(storeIndex.Item1, 4);
                         _endDate = BitConverter.ToUInt32(storeIndex.Item1, 8);
                         long interval = (BitConverter.ToUInt32(storeIndex.Item1, 8) - BitConverter.ToUInt32(storeIndex.Item1, 4)) / (_countIndex - 1);
-                        
+
                         // Procurando a menor diferença absoluta entre o resultado do cálculo e os valores de config
                         _interval = (int)interval;
                         int[] expectedInterval = { 30, 60, 120, 300, 600 };
@@ -248,6 +277,33 @@ namespace QR_scanner_zxing.Platforms.Android
                         Console.WriteLine($"Enviado para leitura ({indexBytes}).");
                     }
                 }
+
+                if (characteristicFD0D != null)
+                {
+                    Console.WriteLine("Teste valueupdated");
+                    allData = new Dictionary<int, (long timestamp, double temp)>();
+                    characteristicFD0D.ValueUpdated += (sender, args) =>
+                    {
+                        Console.WriteLine("Evento ValueUpdated disparado.");
+
+                        var receivedData = args.Characteristic.Value;
+                        Console.WriteLine($"[KBACON] Received data: {BitConverter.ToString(receivedData)}");
+                    };
+
+
+                    var descriptors = await characteristicFD0D.GetDescriptorsAsync();
+                    var cccd = descriptors.FirstOrDefault(d => d.Id.ToString() == "00002902-0000-1000-8000-00805f9b34fb");
+                    if (cccd != null)
+                    {
+                        await characteristicFD0D.StartUpdatesAsync();
+
+                        var valor = new byte[] { 0x01 }; // Enviando true ao descriptor 2902 da FFF4
+                        await cccd.WriteAsync(valor);
+                        Console.WriteLine($"Escrita no CCCD bem sucedida. Valor enviado: {BitConverter.ToString(valor)}");
+                    }
+                }
+
+
 
 
                 if (characteristicFFF3 != null)

@@ -26,7 +26,8 @@ namespace QR_scanner_zxing
         {
             base.OnAppearing();
 
-            string bluetoothAddress = "FE:97:90:00:04:39";
+            //string bluetoothAddress = "FE:97:90:00:04:39";
+            string bluetoothAddress = "CA:32:64:7A:79:A6";
             devPromptConnect(bluetoothAddress);
 
         }
