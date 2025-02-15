@@ -3,6 +3,7 @@
 #if ANDROID
 using Android.Net;
 using AndroidX.Window.Layout;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Animations;
 using Microsoft.Maui.Controls.Platform.Compatibility;
 using Plugin.BLE;
@@ -15,6 +16,7 @@ using System.Net.Mail;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using QR_scanner_zxing.Resources.Services;
 
 
 namespace QR_scanner_zxing.Platforms.Android
@@ -35,11 +37,11 @@ namespace QR_scanner_zxing.Platforms.Android
 
 
         ICharacteristic characteristicFFF3;
-        ICharacteristic characteristicFD0D;
 
 
         public async Task<IDevice> ConnectToBleAsync(string macAddress)
         {
+            Logger.Log("INFO", "[BluetoothService][ConnectToBleAsync] Iniciando conexão com dispositivo");
             var adapter = CrossBluetoothLE.Current.Adapter;
             int retry = 0;
             _macAddress = macAddress;
@@ -53,7 +55,6 @@ namespace QR_scanner_zxing.Platforms.Android
                     await adapter.StartScanningForDevicesAsync();
 
                     var device = adapter.DiscoveredDevices.FirstOrDefault(d => d.NativeDevice.ToString().Equals(macAddress, StringComparison.OrdinalIgnoreCase));
-                    Console.WriteLine($"[ConnectToDeviceAsync] 1 {device}");
 
                     // Dispositivo existe
                     if (device != null)
@@ -62,7 +63,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
                         try
                         {
-                            if (device != null && device.State == Plugin.BLE.Abstractions.DeviceState.Disconnected)
+                            if (device != null && device. State == Plugin.BLE.Abstractions.DeviceState.Disconnected)
                             {
                                 await adapter.ConnectToDeviceAsync(device);
                             }
@@ -74,23 +75,29 @@ namespace QR_scanner_zxing.Platforms.Android
                         }
                         catch (DeviceConnectionException ex)
                         {
-                            Console.WriteLine($"[CONNECT TO DEVICE ASYNC] Error (Não está fazendo o connectTo): {ex.Message}");
+                            Console.WriteLine($"[ConnectToDeviceAsync] Erro: {ex.Message}");
+                            Logger.Log("ERROR", $"[BluetoothService][ConnectToBleAsync] {ex.Message}");
+
                         }
 
 
 
                         if (device != null && device.State == Plugin.BLE.Abstractions.DeviceState.Connected)
                         {
-                            Console.WriteLine("[ConnectToDeviceAsync] Conexão BLE realizada com sucesso.");
+                            Console.WriteLine("[BluetoothService][ConnectToDeviceAsync] Conexão BLE realizada com sucesso.");
+                            Logger.Log("INFO", "[BluetoothService][ConnectToDeviceAsync] Conexão BLE realizada com sucesso.");
                             _connectedDevice = device;
                             return device;
                         }
                     }
-                    Console.WriteLine("[ConnectToDeviceAsync] Falha ao conectar ao dispositivo.");
+                    Console.WriteLine("[BluetoothService][ConnectToDeviceAsync] Falha ao conectar ao dispositivo.");
+                    Logger.Log("info", "[BluetoothService][ConnectToDeviceAsync] Falha ao conectar ao dispositivo.");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ConnectToDeviceAsync] Erro: {ex.Message}");
+                    Console.WriteLine($"[BluetoothService][ConnectToDeviceAsync] Erro: {ex.Message}");
+                    Logger.Log("ERROR", $"[BluetoothService][ConnectToDeviceAsync] {ex.Message}");
+
                 }
                 finally
                 {
@@ -100,7 +107,8 @@ namespace QR_scanner_zxing.Platforms.Android
                     }
                 }
 
-                Console.WriteLine($"[ConnectToDeviceAsync][Retry] Conexão não estabelecida. Tentativa: {retry + 1} de 3.");
+                Console.WriteLine($"[BluetoothService][ConnectToDeviceAsync][Retry] Conexão não estabelecida. Tentativa: {retry + 1} de 3.");
+                Logger.Log("warning", $"[BluetoothService][ConnectToDeviceAsync][Retry] Conexão não estabelecida. Tentativa: {retry + 1} de 3.");
                 retry++;
             }
 
@@ -118,9 +126,9 @@ namespace QR_scanner_zxing.Platforms.Android
 
                 foreach (var record in records)
                 {
-                    Console.WriteLine($"Ad Type: {record.Type}, Data: {BitConverter.ToString(record.Data)} || {record.Data}");
+                    Console.WriteLine($"Ad Type: {record.Type}, Data: {BitConverter.ToString(record.Data)} || {record.Data} || {record.Data.Length}");
 
-                    ProcessAdvertisement(record.Data);
+                    //ProcessAdvertisement(record.Data);
                 }
             }
         }
@@ -135,6 +143,8 @@ namespace QR_scanner_zxing.Platforms.Android
             try
             {
 
+                //Zen measure
+
                 int pid = (data[0] << 8) + data[1];
 
                 string mac = BitConverter.ToString(data, 2, 6).Replace("-", ":");
@@ -147,6 +157,8 @@ namespace QR_scanner_zxing.Platforms.Android
                 _currentTemp = tempDecimal;
 
                 Console.WriteLine($"PID {pid:X} | TagID: {mac} | Battery: {bat} | Temperature: {tempDecimal} | RFU: {rfu}");
+
+                // ----------------------------
             }
             catch
             {
@@ -160,68 +172,52 @@ namespace QR_scanner_zxing.Platforms.Android
             {
                 _serviceUuid = serviceUuid;
                 _characteristicUuid = characteristicUuid;
-                
 
+                Logger.Log("info", "[BluetoothService][ReadDataAsync] Iniciando leitura de dados");
 
-                //List<byte[]> allData = new List<byte[]>();
                 Dictionary<int, (long timestamp, double temp)> allData = new Dictionary<int, (long timestamp, double temp)>();
 
                 try
                 {
                     await _connectedDevice.RequestMtuAsync(512);
                     Console.WriteLine("MTU concedido.");
+                    Logger.Log("info", "[BluetoothService][ReadDataAsync] MTU Concedido");
+
                 }
                 catch
                 {
                     Console.WriteLine("Não foi possível requerir o MTU do dispositivo.");
+                    Logger.Log("info", "[BluetoothService][ReadDataAsync] Não foi possível requerir o MTU do dispositivo");
+
                 }
 
 
                 if (_connectedDevice == null)
                 {
+                    Logger.Log("Error", "[BluetoothService][ReadDataAsync] Nenhum dispositivo encontrado");
                     throw new InvalidOperationException("Nenhum dispositivo encontrado.");
                 }
 
 
-                //var services = await _connectedDevice.GetServicesAsync();
-                //foreach (var service in services)
-                //{
-                //    var characteristics = await service.GetCharacteristicsAsync();
-                //    foreach (var characteristic in  characteristics)
-                //    {
-                //        Console.WriteLine($"\n\n[KBEACON] Informações encontradas:\n\tID Serviço: {service.Id}\n\tNome Serviço: {service.Name}\n\n\tID Característica: {characteristic.Id}\n\tNome característica: {characteristic.Name}\n\tPropriedades da característica: \n\t\tPode ser lida: {characteristic.CanRead}\n\t\tPode ser escrita: {characteristic.CanWrite}\n\t\tPode ser atualizada: {characteristic.CanUpdate}");
+                var service = await _connectedDevice.GetServiceAsync(_serviceUuid);
+                Logger.Log("Info", "[BluetoothService][ReadDataAsync] Coletando serviços");
 
-                //        if (service.Id.ToString() == "0000fd0d-0000-1000-8000-00805f9b34fb" && characteristic.Id.ToString() == "0000fd0d-0000-1000-8000-00805f9b34fb")
-                //        {
-                //            characteristicFD0D = characteristic;
-                //        }
-                //    }
-                //}
-
-
-                //var service_zen = await _connectedDevice.GetServiceAsync(_serviceUuid);
-                var service_zen = await _connectedDevice.GetServiceAsync(new Guid("0000fd0d-0000-1000-8000-00805f9b34fb"));
-
-                if (service_zen == null)
+                if (service == null)
                 {
+                    Logger.Log("Error", "[BluetoothService][ReadDataAsync] Nenhum serviço encontrado");
                     throw new Exception("Serviço não encontrado.");
                 }
 
 
-                  var characteristics = await service_zen.GetCharacteristicsAsync();
+                var characteristics = await service.GetCharacteristicsAsync();
 
                 foreach (var characteristic in characteristics)
                 {
                     if (characteristics == null)
                     {
                         Console.WriteLine("Característica não encontrada.");
-                    }
+                        Logger.Log("Info", "[BluetoothService][ReadDataAsync] Coletando características do serviço");
 
-
-                    if (characteristic.Id.ToString() == "ec4f0000-1537-443e-b05a-713051212f1c")
-                    {
-                        characteristicFD0D = characteristic;
-                        Console.WriteLine($"ESCREVENDO VALOR DE CARACTERISTIC NO FD0D");
                     }
 
 
@@ -243,7 +239,7 @@ namespace QR_scanner_zxing.Platforms.Android
                         _endDate = BitConverter.ToUInt32(storeIndex.Item1, 8);
                         long interval = (BitConverter.ToUInt32(storeIndex.Item1, 8) - BitConverter.ToUInt32(storeIndex.Item1, 4)) / (_countIndex - 1);
 
-                        // Procurando a menor diferença absoluta entre o resultado do cálculo e os valores de config
+                        // Procurando a menor diferença absoluta entre o resultado do cálculo de intervalo e os valores de config (ex: se o valor (em segundos) for 580, o valor será arredondado para 600, que possui a menor diferença absoluta entre os valores de configuração (expectedInterval)
                         _interval = (int)interval;
                         int[] expectedInterval = { 30, 60, 120, 300, 600 };
 
@@ -251,7 +247,6 @@ namespace QR_scanner_zxing.Platforms.Android
                             .OrderBy(value => Math.Abs(value - _interval))
                             .First();
                         // ------
-
 
                         Console.WriteLine($"Valores do STOREINDEX: DELAY {delay}, INTERVAL {interval} | RAW DATA: {BitConverter.ToString(storeIndex.Item1)}");
 
@@ -262,7 +257,13 @@ namespace QR_scanner_zxing.Platforms.Android
                     if (characteristic.Id.ToString() == "0000fff3-0000-1000-8000-00805f9b34fb")
                     {
                         characteristicFFF3 = characteristic;
-                        Console.WriteLine($"CHARACTERISTIC FFF3 {characteristicFFF3.Id}");
+                    }
+
+
+                    if (characteristic.Id.ToString() == "0000fff5-0000-1000-8000-00805f9b34fb")
+                    {
+                        var teste = await characteristic.ReadAsync();
+                        Console.WriteLine($"Valor da característica que representa os limites de temperatura: {BitConverter.ToString(teste.Item1)}");
                     }
                 }
 
@@ -278,45 +279,15 @@ namespace QR_scanner_zxing.Platforms.Android
                     }
                 }
 
-                if (characteristicFD0D != null)
-                {
-                    Console.WriteLine("Teste valueupdated");
-                    allData = new Dictionary<int, (long timestamp, double temp)>();
-                    characteristicFD0D.ValueUpdated += (sender, args) =>
-                    {
-                        Console.WriteLine("Evento ValueUpdated disparado.");
-
-                        var receivedData = args.Characteristic.Value;
-                        Console.WriteLine($"[KBACON] Received data: {BitConverter.ToString(receivedData)}");
-                    };
-
-
-                    var descriptors = await characteristicFD0D.GetDescriptorsAsync();
-                    var cccd = descriptors.FirstOrDefault(d => d.Id.ToString() == "00002902-0000-1000-8000-00805f9b34fb");
-                    if (cccd != null)
-                    {
-                        await characteristicFD0D.StartUpdatesAsync();
-
-                        var valor = new byte[] { 0x01 }; // Enviando true ao descriptor 2902 da FFF4
-                        await cccd.WriteAsync(valor);
-                        Console.WriteLine($"Escrita no CCCD bem sucedida. Valor enviado: {BitConverter.ToString(valor)}");
-                    }
-                }
-
-
-
 
                 if (characteristicFFF3 != null)
                 {
                     try
                     {
-                        Console.WriteLine("Teste valueupdated");
                         allData = new Dictionary<int, (long timestamp, double temp)>();
                         int globalIndex = 0;
                         characteristicFFF3.ValueUpdated += (sender, args) =>
                         {
-                            Console.WriteLine("Evento ValueUpdated disparado.");
-
                             var receivedData = args.Characteristic.Value;
 
                             for (int i = 4; i < receivedData.Length; i += 2) // i = 4 é o offset dos 4 primeiros bytes do array
@@ -328,9 +299,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
 
                                     long timestamp = _endDate - (_interval * (_countIndex - globalIndex));
-                                    //DateTime timestamp = DateTimeOffset.FromUnixTimeSeconds(indexTimestamp).UtcDateTime;
 
-                                    //Console.WriteLine($"i: {i}, index: {globalIndex}, temp: {temp}, value: {value}, timestamp: {timestamp}");
                                     if (allData.ContainsKey(globalIndex))
                                     {
                                         Console.WriteLine($"Chave duplicada detectada: {globalIndex} | {allData[globalIndex]}");
@@ -343,8 +312,6 @@ namespace QR_scanner_zxing.Platforms.Android
                                 }
                                 globalIndex++;
                             }
-                            //allData.Add(args.Characteristic.Value);
-                            //Console.WriteLine($"Acho que entendi: {BitConverter.ToString(args.Characteristic.Value)}");
                         };
 
                         var descriptors = await characteristicFFF3.GetDescriptorsAsync();
@@ -374,19 +341,6 @@ namespace QR_scanner_zxing.Platforms.Android
                 }
 
                 await DisconnectAsync();
-
-                //for (int i = 0; i < allData.Count; i++)
-                //{
-                //    Console.WriteLine($"Índice {i + 1}: {allData[i]}");
-                //}
-
-                //foreach (var temp in allData)
-                //{
-                //    Console.WriteLine($"Temp: {temp}");
-                //}
-                //string result = string.Join(",", allData.Select(b => BitConverter.ToString(b)));
-
-
                 return allData;
             }
             catch (Exception ex)
@@ -396,39 +350,39 @@ namespace QR_scanner_zxing.Platforms.Android
             }
         }
             
-        private void TemperatureCharacteristic_ValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
-        {
-            var data = e.Characteristic.Value;
-            if (data != null && data.Length >= 6)
-            {
-                int rawTemperature = (data[0] & 0xFF) | (data[1] & 0xFF << 8);
-                double temperature = rawTemperature / 100.0;
+        //private void TemperatureCharacteristic_ValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
+        //{
+        //    var data = e.Characteristic.Value;
+        //    if (data != null && data.Length >= 6)
+        //    {
+        //        int rawTemperature = (data[0] & 0xFF) | (data[1] & 0xFF << 8);
+        //        double temperature = rawTemperature / 100.0;
 
-                long timestamp = (data[2] & 0xFFL) | ((data[3] & 0xFFL) << 8) | ((data[4] & 0xFFL) << 16) | ((data[5] & 0xFFL) << 24);
+        //        long timestamp = (data[2] & 0xFFL) | ((data[3] & 0xFFL) << 8) | ((data[4] & 0xFFL) << 16) | ((data[5] & 0xFFL) << 24);
 
-                Console.WriteLine($"Temperatura recebida: {temperature}");
-            }
-            else
-            {
-                Console.WriteLine("Dados de temperatura ou timestamp inválidos recebidos.");
-            }
-        }
+        //        Console.WriteLine($"Temperatura recebida: {temperature}");
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("Dados de temperatura ou timestamp inválidos recebidos.");
+        //    }
+        //}
 
-        public string hexToString(string hexString)
-        {
-            if (hexString == null || hexString.Length % 2 != 0)
-            {
-                throw new ArgumentException("A string hexadecimal deve ter um número par de dígitos", nameof(hexString));
-            }
+        //public string hexToString(string hexString)
+        //{
+        //    if (hexString == null || hexString.Length % 2 != 0)
+        //    {
+        //        throw new ArgumentException("A string hexadecimal deve ter um número par de dígitos", nameof(hexString));
+        //    }
 
-            var bytes = new byte[hexString.Length / 2];
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                bytes[i] = Convert.ToByte(hexString.Substring(i * 2, 2), 16);
-            }
+        //    var bytes = new byte[hexString.Length / 2];
+        //    for (int i = 0; i < bytes.Length; i++)
+        //    {
+        //        bytes[i] = Convert.ToByte(hexString.Substring(i * 2, 2), 16);
+        //    }
 
-            return Encoding.ASCII.GetString(bytes);
-        }
+        //    return Encoding.ASCII.GetString(bytes);
+        //}
 
         public async Task DisconnectAsync()
         {
@@ -441,11 +395,15 @@ namespace QR_scanner_zxing.Platforms.Android
                     _connectedDevice = null;
                     await Task.Delay(2000);
                     Console.WriteLine("[DisconnectAsync] Dispositivo desconectado.");
+                    Logger.Log("Info", "[BluetoothService][DisconnectAsync] Dispositivo desconectado");
+
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[DisconnectAsync] Erro: {ex.Message}");
+                Logger.Log("Error", $"[BluetoothService][DisconnectAsync] {ex.Message}");
+                
             }
         }
     }
