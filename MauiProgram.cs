@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
-using ZXing.Net.Maui;
+﻿using ZXing.Net.Maui;
 using ZXing.Net.Maui.Controls;
 using QR_scanner_zxing;
 using QR_scanner_zxing.Platforms;
 using QR_scanner_zxing.Platforms.Android;
+using System;
+using System.IO;
+using Microsoft.Maui.Storage;
+
 
 
 namespace QR_scanner_zxing
@@ -21,8 +24,6 @@ namespace QR_scanner_zxing
 #endif
             builder.Services.AddTransient<QRCodeScannerPage>();
             //builder.Services.AddSingleton<App>();
-
-
             return builder.Build();
         }
     }

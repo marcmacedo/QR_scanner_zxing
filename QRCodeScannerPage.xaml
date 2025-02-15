@@ -1,9 +1,17 @@
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
              x:Class="QR_scanner_zxing.QRCodeScannerPage"
              Title="Escanear QR">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="ℹ"
+                     Priority="0"
+                     Order="Primary"    
+                     Clicked="OnAppInfoClicked"/>
+    </ContentPage.ToolbarItems>
 
+    
+    
     <Grid>
         <zxing:CameraBarcodeReaderView x:Name="cameraBarcodeReaderView"
                                        HorizontalOptions="FillAndExpand"

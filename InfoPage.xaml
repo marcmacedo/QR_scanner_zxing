@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="QR_scanner_zxing.InfoPage"
+             Title="InfoPage">
+    <StackLayout Padding="20">
+        <Label Text="Informações do Aplicativo" FontSize="Large" HorizontalOptions="Center"/>
+
+        <Label Text="Nome:" FontAttributes="Bold"/>
+        <Label Text="{Binding AppName}" />
+
+        <!-- Versão do Aplicativo -->
+        <Label Text="Versão:" FontAttributes="Bold"/>
+        <Label Text="{Binding AppVersion}" />
+
+        <!-- Botão para Exportar Log -->
+        <Button Text="Exportar Logs"
+                BackgroundColor="LightGray"
+                Clicked="OnExportLogClicked"/>
+
+    </StackLayout>
+</ContentPage>

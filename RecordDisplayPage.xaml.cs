@@ -2,6 +2,7 @@ using QR_scanner_zxing.Platforms.Android;
 using System.Runtime.InteropServices;
 using System.Text;
 using QR_scanner_zxing.Models;
+using QR_scanner_zxing.Resources.Services;
 
 namespace QR_scanner_zxing;
 
@@ -36,6 +37,7 @@ public partial class RecordDisplayPage : ContentPage
         {
 
             await _bluetoothService.DisconnectAsync();
+            Logger.Log("Info", "[BluetoothService][DisconnectAsync] Dispositivo desconectado pelo usuário");
 
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
@@ -48,13 +50,12 @@ public partial class RecordDisplayPage : ContentPage
 	{
 		try
 		{
-         
+			Logger.Log("Info", "[RecordDisplayPage][StartReadingData] Preparando payload de leitura de dados");
 			// Remover
             Guid serviceUuid = Guid.Parse("0000fff0-0000-1000-8000-00805f9b34fb");
 			Guid characteristicUuid = Guid.Parse("0000fff1-0000-1000-8000-00805f9b34fb");
 
 
-			Console.WriteLine("[RecordDisplayPage][StartReadingData] Iniciando leitura dos dados históricos");
 			var data = await _bluetoothService.ReadDataAsync(serviceUuid, characteristicUuid, _bluetoothService);
 
 			_records = data;
@@ -67,7 +68,8 @@ public partial class RecordDisplayPage : ContentPage
 				Temperatura = $"{r.Value.temp} °C"
 			}).ToList();
 
-            Console.WriteLine($"Total de registros: {registrosList.Count}");
+            Console.WriteLine($"[INFO] - [RecordDisplayPage][StartReadingData] Total de registros: {registrosList.Count}");
+            Logger.Log("Info", $"[RecordDisplayPage][StartReadingData] Total de registros lidos: {registrosList.Count}");
             foreach (var registro in registrosList)
             {
                 Console.WriteLine($"Timestamp: {registro.Timestamp}, Temperatura: {registro.Temperatura}");
@@ -79,7 +81,8 @@ public partial class RecordDisplayPage : ContentPage
 		}
         catch (Exception ex) 
 		{
-			Console.WriteLine("Deu pane."); 
+			Console.WriteLine($"[ERROR] - [RecordDisplayPage][StartReadingData] Erro: {ex.Message}");
+			Logger.Log("error", $"[RecordDisplayPage][StartReadingData] {ex.Message}");
 		}
 
 	}
@@ -103,19 +106,15 @@ public partial class RecordDisplayPage : ContentPage
 
 			StringBuilder csvBuilder = new StringBuilder();
 
-			//foreach (string record in data)
-			//{
-			//	csvBuilder.AppendLine(record);
-			//}
 
-			File.WriteAllText(filePath, csvBuilder.ToString());
+			File.WriteAllText(filePath, data.ToString());
 
 			await DisplayAlert("Exportação megalomaníaca", $"Arquivo salvo em: {filePath}", "OK");
 			await ShareCsvAsync(filePath);
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Erro ao tentar exportar CSV: {ex.Message}");
+			Console.WriteLine($"[ERROR] - [RecordDisplayPage][ExportToCsvAsync] Erro ao tentar exportar CSV: {ex.Message}");
 			await DisplayAlert("Erro", "Não foi possível exportar os dados.", "OK");
 		}
 	}
@@ -132,7 +131,7 @@ public partial class RecordDisplayPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"Erro ao compartilhar CSV: {ex.Message}");
+			Console.WriteLine($"[ERROR] - [RecordDisplayPage][ShareCsvAsync] Erro ao compartilhar CSV: {ex.Message}");
 		}
 	}
 }
