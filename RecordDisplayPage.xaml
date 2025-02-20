@@ -6,7 +6,7 @@
 
     <ContentPage.ToolbarItems>
         <ToolbarItem
-            Text="Exportar Dados"
+            Text="Salvar resultado"
             Clicked="OnExportClicked"/>
     </ContentPage.ToolbarItems>
 
@@ -26,6 +26,19 @@
             </ListView.ItemTemplate>
         </ListView>
         <!--####################################-->
-    </StackLayout>
 
+        <Button Text="Exportar para TagoIO"
+                Clicked="OnExportToTagoClicked"
+                BackgroundColor="Blue"
+                TextColor="White"
+                FontAttributes="Bold"
+                CornerRadius="20"
+                Padding="10"
+                WidthRequest="200"
+                HeightRequest="50"
+                VerticalOptions="End"
+                HorizontalOptions="Center"
+                Margin="20"/>
+
+    </StackLayout>
 </ContentPage>

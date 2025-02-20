@@ -17,6 +17,7 @@ using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using QR_scanner_zxing.Resources.Services;
+using QR_scanner_zxing.Models;
 
 
 namespace QR_scanner_zxing.Platforms.Android
@@ -34,6 +35,7 @@ namespace QR_scanner_zxing.Platforms.Android
         uint _endDate;
 
         double _currentTemp;
+        SensorData allData = new SensorData();
 
 
         ICharacteristic characteristicFFF3;
@@ -45,6 +47,16 @@ namespace QR_scanner_zxing.Platforms.Android
             var adapter = CrossBluetoothLE.Current.Adapter;
             int retry = 0;
             _macAddress = macAddress;
+            try
+            {
+                allData.Address = _macAddress;
+                allData.CurrentDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                Console.WriteLine("AQUI NÃO ESTÁ O PROBLEMA");
+            } catch (Exception ex)
+            {
+                Console.WriteLine($"O PROBLEMA ESTÁ AQUI: {ex.Message}");
+            }
+
 
             adapter.DeviceAdvertised += HandleDeviceAdvertised;
 
@@ -65,12 +77,12 @@ namespace QR_scanner_zxing.Platforms.Android
                         {
                             if (device != null && device. State == Plugin.BLE.Abstractions.DeviceState.Disconnected)
                             {
+                                allData.Model = device.Name;
                                 await adapter.ConnectToDeviceAsync(device);
                             }
                             else if (device != null && device.State == Plugin.BLE.Abstractions.DeviceState.Connected)
                             {
                                 await adapter.DisconnectDeviceAsync(device);
-                                Console.WriteLine($"[ConnectToDeviceAsync] Estado do sensor Bluetooth: {device.State}");
                             }
                         }
                         catch (DeviceConnectionException ex)
@@ -128,7 +140,7 @@ namespace QR_scanner_zxing.Platforms.Android
                 {
                     Console.WriteLine($"Ad Type: {record.Type}, Data: {BitConverter.ToString(record.Data)} || {record.Data} || {record.Data.Length}");
 
-                    //ProcessAdvertisement(record.Data);
+                    ProcessAdvertisement(record.Data);
                 }
             }
         }
@@ -150,11 +162,13 @@ namespace QR_scanner_zxing.Platforms.Android
                 string mac = BitConverter.ToString(data, 2, 6).Replace("-", ":");
                 var rfu = BitConverter.ToString(data, 8, 8);
                 var bat = Convert.ToInt32(BitConverter.ToString(data, 17, 1), 16);
+                allData.Battery = bat.ToString() + "%";
 
                 var temperature = BitConverter.ToString(data, 18, 2).Replace("-", "");
                 string temperature_hex = temperature.Substring(2, 2) + temperature.Substring(0, 2);
                 double tempDecimal = Math.Round(int.Parse(temperature_hex, System.Globalization.NumberStyles.HexNumber) / 100.0, 2);
                 _currentTemp = tempDecimal;
+                allData.CurrentTemp = tempDecimal.ToString() + " C";
 
                 Console.WriteLine($"PID {pid:X} | TagID: {mac} | Battery: {bat} | Temperature: {tempDecimal} | RFU: {rfu}");
 
@@ -165,7 +179,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
             }
         }
-        public async Task<Dictionary<int, (long timestamp, double temp)>> ReadDataAsync(Guid serviceUuid, Guid characteristicUuid, IBluetoothService bluetoothService)
+        public async Task<SensorData> ReadDataAsync(Guid serviceUuid, Guid characteristicUuid, IBluetoothService bluetoothService)
         {
             int totalIndex = 0;
             try
@@ -175,7 +189,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
                 Logger.Log("info", "[BluetoothService][ReadDataAsync] Iniciando leitura de dados");
 
-                Dictionary<int, (long timestamp, double temp)> allData = new Dictionary<int, (long timestamp, double temp)>();
+                //var allData = new SensorData();
 
                 try
                 {
@@ -236,6 +250,7 @@ namespace QR_scanner_zxing.Platforms.Android
 
                         ushort delay = BitConverter.ToUInt16(storeIndex.Item1, 2);
                         _startDate = BitConverter.ToUInt32(storeIndex.Item1, 4);
+                        allData.StartDate = DateTimeOffset.FromUnixTimeSeconds(_startDate).ToString("yyyy-MM-dd HH:mm:ss");
                         _endDate = BitConverter.ToUInt32(storeIndex.Item1, 8);
                         long interval = (BitConverter.ToUInt32(storeIndex.Item1, 8) - BitConverter.ToUInt32(storeIndex.Item1, 4)) / (_countIndex - 1);
 
@@ -284,9 +299,9 @@ namespace QR_scanner_zxing.Platforms.Android
                 {
                     try
                     {
-                        allData = new Dictionary<int, (long timestamp, double temp)>();
+                        //allData = new Dictionary<int, (long timestamp, double temp)>();
                         int globalIndex = 0;
-                        characteristicFFF3.ValueUpdated += (sender, args) =>
+                        characteristicFFF3.ValueUpdated += async (sender, args) =>
                         {
                             var receivedData = args.Characteristic.Value;
 
@@ -300,17 +315,24 @@ namespace QR_scanner_zxing.Platforms.Android
 
                                     long timestamp = _endDate - (_interval * (_countIndex - globalIndex));
 
-                                    if (allData.ContainsKey(globalIndex))
-                                    {
-                                        Console.WriteLine($"Chave duplicada detectada: {globalIndex} | {allData[globalIndex]}");
+                                    allData.AddRecord(globalIndex, timestamp, value);
 
-                                    }
-                                    else
-                                    {
-                                        allData.Add(globalIndex, (timestamp, value));
-                                    }
+                                    //allData.Records.Add(new Record { Timestamp = timestamp.ToString(), Temperatura = value.ToString() });
+                                    //await Task.Delay(50);
+
+                                    //if (allData.Records.Any(r => r.Timestamp == timestamp.ToString()))
+                                    //{
+                                    //    Console.WriteLine($"Chave duplicada detectada: {globalIndex} | Timestamp: {timestamp}");
+
+                                    //}
+                                    //else
+                                    //{
+                                    //    //allData.Records.Add(globalIndex, (timestamp, value));
+                                    //    allData.Records.Add(new Record { Timestamp = timestamp.ToString(), Temperatura = value.ToString() });
+                                    //}
                                 }
                                 globalIndex++;
+                                //await Task.Delay(1);
                             }
                         };
 
@@ -341,6 +363,7 @@ namespace QR_scanner_zxing.Platforms.Android
                 }
 
                 await DisconnectAsync();
+                Console.WriteLine($"Count de quantidade de registros antes de voltar à tela de registros: {allData.Records.Count}");
                 return allData;
             }
             catch (Exception ex)

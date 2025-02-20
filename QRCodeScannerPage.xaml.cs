@@ -20,7 +20,6 @@ namespace QR_scanner_zxing
             _bluetoothService = bluetoothService ?? throw new ArgumentNullException(nameof(bluetoothService));
             Application.Current.UserAppTheme = AppTheme.Dark;
             NavigationPage.SetHasBackButton(this, false); // Remove botão de voltar caso o usuário volte para a tela inicial após uma conexão
-            Logger.Log("Info", "Teste de log");
         }
 
         // Função para conexão direta ao endereço (uso somente em escala de desenvolvimento)
@@ -29,9 +28,8 @@ namespace QR_scanner_zxing
             base.OnAppearing();
             Logger.Log("INFO", "[QRCodeScannerPage][OnAppearing] Execução inicializada");
 
-            //string bluetoothAddress = "FE:97:90:00:04:39";
-            ////string bluetoothAddress = "CA:32:64:7A:79:A6";
-            //devPromptConnect(bluetoothAddress);
+            string bluetoothAddress = "FE:97:90:00:04:39";
+            devPromptConnect(bluetoothAddress);
 
         }
         protected override bool OnBackButtonPressed() { return true; }
@@ -117,7 +115,6 @@ namespace QR_scanner_zxing
                 await DisplayAlert("Erro", ex.Message, "OK");
                 Console.WriteLine($"Erro {ex.Message}");
                 Logger.Log("error", $"[QRCodeScannerPage][OnBarcodeDetected][Catch] {ex.Message}");
-
             }
         }
 
