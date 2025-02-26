@@ -1,19 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace QR_scanner_zxing.Models
 {
-
-    //internal class Record
-    //{
-    //    public string Timestamp { get; set; }
-    //    public string Temperatura { get; set; }
-    //    public string Count { get; set; }
-    //}
 
     public class Record
     {
@@ -54,14 +48,38 @@ namespace QR_scanner_zxing.Models
             }
         }
 
+        public List<object> ToTagoFormat(int lastSentIndex = 0)
+        {
+            var data = new List<object>
+            {
+                new { variable = "device_name", value = this.Model },
+                new { variable = "device_address", value = this.Address },
+                new { variable = "battery", value = this.Battery, unit = "%" },
+                new { variable = "start_date", value = this.StartDate },
+                new { variable = "current_date", value = this.CurrentDate },
+                new { variable = "current_temperature", value = this.CurrentTemp, unit = "C" },
+            };
 
-        //public Dictionary<int, (long timestamp, double temp)> Records { get; set; }
+            var newData = _recordsDict
+                .Skip(lastSentIndex)
+                .ToList();
 
-        //public SensorData()
-        //{
-        //    Records = new Dictionary<int, (long, double)>();
-        //}
+            foreach (var kvp in newData)
+            {
 
-        //public List<Record> Records { get; set; } = new List<Record>();
+                long timestamp = kvp.Value.timestamp;
+
+                string formattedTime = DateTimeOffset.FromUnixTimeSeconds(timestamp).ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+                data.Add(new
+                {
+                    variable = "Temperature",
+                    value = kvp.Value.temp,
+                    unit = "C",
+                    time = formattedTime
+                });
+            }
+            return data;
+        }
     }
 }

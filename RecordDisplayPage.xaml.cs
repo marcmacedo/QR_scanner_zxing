@@ -1,11 +1,9 @@
 ﻿using QR_scanner_zxing.Platforms.Android;
-using System.Runtime.InteropServices;
 using System.Text;
 using QR_scanner_zxing.Models;
 using QR_scanner_zxing.Resources.Services;
 using System.Text.Json;
-using System.Net.Http;
-using System.Diagnostics;
+using QR_scanner_zxing.Resources.Raw;
 
 
 
@@ -114,84 +112,115 @@ public partial class RecordDisplayPage : ContentPage
 			await DisplayAlert("Aviso", "Não há dados para exportar.", "OK");
 		}
 	}
-	private async Task ExportToCsvAsync(Dictionary<int, (long timestamp, double temp)> data)
-	{
-		try
-		{
-			string fileName = $"ExportedData_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-			string filePath = Path.Combine(FileSystem.AppDataDirectory, fileName);
-
-			StringBuilder csvBuilder = new StringBuilder();
-
-
-			File.WriteAllText(filePath, data.ToString());
-
-			await DisplayAlert("Exportação megalomaníaca", $"Arquivo salvo em: {filePath}", "OK");
-			await ShareCsvAsync(filePath);
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($"[ERROR] - [RecordDisplayPage][ExportToCsvAsync] Erro ao tentar exportar CSV: {ex.Message}");
-			await DisplayAlert("Erro", "Não foi possível exportar os dados.", "OK");
-		}
-	}
 
 	private async void OnExportToTagoClicked(object sender, EventArgs e)
-	{
-		try
+    {
+        try
 		{
-            var handler = new HttpClientHandler()
-            {
-                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-            };
 
-            var _httpClient = new HttpClient(handler);
+			var tokens = AppSettings.GetApiTokens();
 
-
-            string apiUrl = "https://192.168.15.6:8080/tago";
-
-			int chunkSize = 1000;
-
-			string fullJson = JsonSerializer.Serialize(_records, new JsonSerializerOptions { WriteIndented = true });
-			int totalChunk = (int)Math.Ceiling((double)fullJson.Length / chunkSize);
-			for (int i = 0; i < totalChunk; i++)
+			if (tokens.Count == 0)
 			{
-				string chunk = fullJson.Substring(i * chunkSize, Math.Min(chunkSize, fullJson.Length - (i * chunkSize)));
-
-				var payload = new
-				{
-					chunkIndex = i,
-					totalChunk = totalChunk,
-					data = chunk
-				};
-
-				string jsonChunk = JsonSerializer.Serialize(payload);
-				var content = new StringContent(jsonChunk, Encoding.UTF8, "application/json");
-
-				var response = await _httpClient.PostAsync(apiUrl, content);
-				var responseBody = await response.Content.ReadAsStringAsync();
-				Console.WriteLine($"Chunk {i + 1}/{totalChunk} enviado. Resposta: {responseBody}");
+                bool register = await DisplayAlert("Nenhum Token Encontrado", "Nenhuma chave de conexão foi encontrada. Deseja adicionar um novo token?", "SIM", "NÃO");
+                if (register)
+                {
+					await RegisterNewToken();
+                }
+				return;
 			}
 
+			string selectedToken = await DisplayActionSheet("Selecione um Token", "Cancelar", "Adicionar", tokens.Keys.ToArray());
+
+
+			if (selectedToken == "Adicionar")
+			{
+                await RegisterNewToken();
+            }
+			else if (!string.IsNullOrEmpty(selectedToken))
+			{
+
+				string action = await DisplayActionSheet($"Opções {selectedToken}", "Cancelar", null, "Selecionar", "Editar", "Excluir");
+				string tokenValue = "";
+
+                if (action == "Selecionar")
+				{
+					tokenValue = tokens[selectedToken];
+					Console.WriteLine($"Token selecionado: {selectedToken} | {tokenValue}");
+				}
+				else if (action == "Editar")
+				{
+					await EditToken(selectedToken);
+				}
+				else if (action == "Excluir")
+				{
+					bool confirm = await DisplayAlert("Excluir Token", $"Tem certeza que deseja excluir o token \"{selectedToken}\"?", "SIM", "NÃO");
+					if (confirm)
+					{
+						AppSettings.DeleteApiToken(selectedToken);
+						await DisplayAlert("Sucesso", "Token excluído com sucesso!", "OK");
+					}
+				}
 
 
 
-			//var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+				//var handler = new HttpClientHandler()
 
-			//var response = await _httpClient.PostAsync(apiUrl, content);
-			//var responseBody = await response.Content.ReadAsStringAsync();
-			//Console.WriteLine($"Resposta: {responseBody}");
+				//{
+				//	ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+				//};
+
+				//var _httpClient = new HttpClient(handler);
+				var _httpClient = new HttpClient();
+			
 
 
-			//if (response.IsSuccessStatusCode)
-   //         {
-   //             Console.WriteLine("Dados enviados com sucesso.");
-			//	await DisplayAlert("Aviso", "Dados enviados via API.", "OK");
-   //         }
-   //         else
-   //         {
-   //             Console.WriteLine($"Erro ao enviar dados: {response.StatusCode}");
-   //         }
+				string apiUrl = "https://api.tago.io/data";
+
+
+				//var lastSentIndexStr = await SecureStorage.GetAsync("last_sent_index");
+				int lastSentIndexStr = await AppSettings.GetLastSentIndexAsync(tokenValue);
+                int lastSentIndex = lastSentIndexStr != null ? lastSentIndexStr : 0;
+				Console.WriteLine($"VALOR DO ÚLTIMO ÍNDICE {lastSentIndex}");
+                var tagoData = _records.ToTagoFormat(lastSentIndex);
+
+				//Console.WriteLine($"{JsonSerializer.Serialize(_records.ToTagoFormat(0), new JsonSerializerOptions { WriteIndented = true })}");
+
+
+                if (tagoData.Count <= 6)
+                {
+                    Console.WriteLine("Não há novos dados a serem enviados para a Tago.");
+                    await DisplayAlert("Aviso", "Não há novos registros a serem enviados.", "OK");
+                }
+
+                else
+                {
+                    string jsonContent = JsonSerializer.Serialize(tagoData, new JsonSerializerOptions { WriteIndented = true });
+
+                    var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                    _httpClient.DefaultRequestHeaders.Clear();
+                    _httpClient.DefaultRequestHeaders.Add("Device-Token", tokenValue);
+
+
+                    var response = await _httpClient.PostAsync(apiUrl, content);
+                    var responseBody = await response.Content.ReadAsStringAsync();
+
+                    Console.WriteLine($"Status: {response.StatusCode} | Resposta da API: {responseBody}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        int newLastCount = _records.Records.Count;
+                        await AppSettings.SaveLastSentIndexAsync(tokenValue, newLastCount);
+
+                        Console.WriteLine($"Novo último índice enviado: {newLastCount}");
+                    }
+                }
+
+            }
+
+
+			
         }
 		catch (Exception ex)
 		{
@@ -200,7 +229,70 @@ public partial class RecordDisplayPage : ContentPage
 		}
 	}
 
-	private async Task ShareCsvAsync(string filePath)
+
+	private async Task RegisterNewToken()
+	{
+		try
+		{
+            string tokenName = await DisplayPromptAsync("Novo Token", "Digite um nome para o token:", "OK", "Cancelar");
+            if (string.IsNullOrEmpty(tokenName)) return;
+
+            string tokenValue = await DisplayPromptAsync("Novo Token", "Digite o valor do token:");
+            if (string.IsNullOrEmpty(tokenValue)) return;
+
+            AppSettings.SaveApiToken(tokenName, tokenValue);
+            Console.WriteLine($"Token salvo com sucesso: {tokenName} | {tokenValue}");
+
+            await DisplayAlert("Sucesso", "Token cadastrado com sucesso", "OK");
+        }
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Erro ao cadastrar token: {ex.Message}");
+
+		}
+    }
+
+	private async Task EditToken(string oldToken)
+	{
+		var tokens = AppSettings.GetApiTokens();
+		if (!tokens.ContainsKey(oldToken)) return;
+
+		string newName = await DisplayPromptAsync("Editar Token", "Insira o novo nome para o token.", initialValue: oldToken);
+		if (string.IsNullOrEmpty(newName)) return;
+
+		string newValue = await DisplayPromptAsync("Editar Token", "Insira o novo valor para o token.", initialValue: tokens[oldToken]);
+		if (string.IsNullOrEmpty(newValue)) return;
+
+		AppSettings.DeleteApiToken(oldToken);
+		AppSettings.SaveApiToken(newName, newValue);
+
+		await DisplayAlert("Sucesso", "Token editado com sucesso!", "OK");
+	}
+
+
+    private async Task ExportToCsvAsync(Dictionary<int, (long timestamp, double temp)> data)
+    {
+        try
+        {
+            string fileName = $"ExportedData_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, fileName);
+
+            StringBuilder csvBuilder = new StringBuilder();
+
+
+            File.WriteAllText(filePath, data.ToString());
+
+            await DisplayAlert("Exportação megalomaníaca", $"Arquivo salvo em: {filePath}", "OK");
+            await ShareCsvAsync(filePath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] - [RecordDisplayPage][ExportToCsvAsync] Erro ao tentar exportar CSV: {ex.Message}");
+            await DisplayAlert("Erro", "Não foi possível exportar os dados.", "OK");
+        }
+    }
+
+    private async Task ShareCsvAsync(string filePath)
 	{
 		try
 		{

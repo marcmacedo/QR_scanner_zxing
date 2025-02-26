@@ -5,9 +5,9 @@
              Title="Dados encontrados">
 
     <ContentPage.ToolbarItems>
-        <ToolbarItem
+        <!--<ToolbarItem
             Text="Salvar resultado"
-            Clicked="OnExportClicked"/>
+            Clicked="OnExportClicked"/>-->
     </ContentPage.ToolbarItems>
 
     <StackLayout Padding="20">

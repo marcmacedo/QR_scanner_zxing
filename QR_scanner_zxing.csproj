@@ -67,11 +67,21 @@
 
 	<ItemGroup>
 	  <Compile Remove="Models\Record.cs" />
+	  <Compile Remove="Resources\Raw\ApiSettings.cs" />
+	  <Compile Remove="Resources\Raw\AppSettings.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiAsset Remove="Resources\Raw\ApiSettings.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <None Remove="Resources\Images\desconectar_1.png" />
 	  <None Remove="Resources\Images\desconectar_2.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiAsset Include="Resources\Services\AppSettings.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

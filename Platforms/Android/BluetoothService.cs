@@ -332,7 +332,6 @@ namespace QR_scanner_zxing.Platforms.Android
                                     //}
                                 }
                                 globalIndex++;
-                                //await Task.Delay(1);
                             }
                         };
 
@@ -355,7 +354,10 @@ namespace QR_scanner_zxing.Platforms.Android
                 }
 
 
-                await Task.Delay(1000);
+                // Clamp limita o range do delay entre o mínimo e o máximo (1000, 20000)
+                int currentDelay = Math.Clamp(totalIndex < 3000 ? totalIndex : totalIndex / 2, 1000, 20000);
+                await Task.Delay(currentDelay);
+
                 
                 if (characteristicFFF3 != null)
                 {

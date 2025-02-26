@@ -22,14 +22,16 @@ namespace QR_scanner_zxing
             NavigationPage.SetHasBackButton(this, false); // Remove botão de voltar caso o usuário volte para a tela inicial após uma conexão
         }
 
-        // Função para conexão direta ao endereço (uso somente em escala de desenvolvimento)
+
         protected override async void OnAppearing()
         {
             base.OnAppearing();
             Logger.Log("INFO", "[QRCodeScannerPage][OnAppearing] Execução inicializada");
 
-            string bluetoothAddress = "FE:97:90:00:04:39";
-            devPromptConnect(bluetoothAddress);
+
+            // Função para conexão direta ao endereço (uso somente em escala de desenvolvimento)
+            //string bluetoothAddress = "FE:97:90:00:04:39";
+            //devPromptConnect(bluetoothAddress);
 
         }
         protected override bool OnBackButtonPressed() { return true; }
